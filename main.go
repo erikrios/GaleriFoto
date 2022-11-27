@@ -4,10 +4,13 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/erikrios/cloud-native-programming-with-go/config"
 	"github.com/gorilla/mux"
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	log.Println("Server started on port 8181...")
 	if err := ServeAPI(); err != nil {
 		log.Fatalln(err)
