@@ -1,17 +1,38 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/erikrios/cloud-native-programming-with-go/config"
 	_ "github.com/erikrios/cloud-native-programming-with-go/config"
+	"github.com/erikrios/cloud-native-programming-with-go/lib/persistence/mongodb"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	log.Println("Server started on port 8181...")
+	connection := fmt.Sprintf("mongodb://%s:%s@%s:%d/%s/?authSource=admin", config.DBUsername, config.DBPassword, config.DBHost, config.DBPort, config.DBName)
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(connection))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	_ = mongodb.NewMongoDBLayer(client.Database(config.DBName))
+	log.Println("Successfully connected into database")
+
+	log.Println(fmt.Sprintf("Server started on port %d...\n", config.Port))
 	if err := ServeAPI(); err != nil {
 		log.Fatalln(err)
 	}
@@ -29,7 +50,7 @@ func ServeAPI() error {
 
 	eventsRouter.Methods("POST").Path("").HandlerFunc(handler.newEventHandler)
 
-	return http.ListenAndServe(":8181", r)
+	return http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r)
 }
 
 type eventServiceHandler struct{}
