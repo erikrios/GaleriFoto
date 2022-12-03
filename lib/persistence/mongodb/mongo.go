@@ -1,7 +1,12 @@
 package mongodb
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/erikrios/cloud-native-programming-with-go/lib/persistence"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -20,46 +25,59 @@ func NewMongoDBLayer(db *mongo.Database) persistence.DatabaseHandler {
 }
 
 func (m *MongoDBLayer) AddEvent(e persistence.Event) ([]byte, error) {
-	// s := m.getFreshSession()
-	// defer s.Close()
+	result, err := m.db.Collection(EVENTS).InsertOne(context.TODO(), &e)
+	if err != nil {
+		return nil, persistence.ErrDatabase
+	}
 
-	// if !e.ID.Valid() {
-	// 	e.ID = bson.NewObjectId()
-	// }
-
-	// if !e.Location.ID.Valid() {
-	// 	e.Location.ID = bson.NewObjectId()
-	// }
-
-	// return []byte(e.ID), s.DB(config.DBName).C(EVENTS).Insert(e)
-	return nil, nil
+	id, err := primitive.ObjectIDFromHex(fmt.Sprintf("%s", result.InsertedID))
+	return []byte(id.String()), nil
 }
 
 func (m *MongoDBLayer) FindEvent(id []byte) (persistence.Event, error) {
-	// s := m.getFreshSession()
-	// defer s.Close()
+	filter := bson.D{{"_id", string(id)}}
 
-	// e := persistence.Event{}
+	var event persistence.Event
 
-	// err := s.DB(config.DBName).C(EVENTS).FindId(bson.ObjectId(id)).One(&e)
-	return persistence.Event{}, nil
+	if err := m.db.Collection(EVENTS).FindOne(context.TODO(), filter).Decode(&event); err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return persistence.Event{}, persistence.ErrNotFound
+		default:
+			return persistence.Event{}, persistence.ErrDatabase
+		}
+	}
+
+	return event, nil
 }
 
 func (m *MongoDBLayer) FindEventByName(name string) (persistence.Event, error) {
-	// s := m.getFreshSession()
-	// defer s.Close()
-	// e := persistence.Event{}
-	// err := s.DB(config.DBName).C(EVENTS).Find(bson.M{"name": name}).One(&e)
-	// return e, err
-	// return events, err
-	return persistence.Event{}, nil
+	filter := bson.D{{"name", name}}
+
+	var event persistence.Event
+
+	if err := m.db.Collection(EVENTS).FindOne(context.TODO(), filter).Decode(&event); err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return persistence.Event{}, persistence.ErrNotFound
+		default:
+			return persistence.Event{}, persistence.ErrDatabase
+		}
+	}
+
+	return event, nil
 }
 
 func (m *MongoDBLayer) FindAllAvailableEvents() ([]persistence.Event, error) {
-	// s := m.getFreshSession()
-	// defer s.Close()
-	// events := []persistence.Event{}
-	// err := s.DB(config.DBName).C(EVENTS).Find(nil).All(&events)
-	// return events, err
-	return nil, nil
+	cursor, err := m.db.Collection(EVENTS).Find(context.TODO(), bson.D{})
+	if err != nil {
+		return nil, persistence.ErrDatabase
+	}
+
+	events := make([]persistence.Event, 0)
+	if err := cursor.All(context.TODO(), &events); err != nil {
+		return nil, persistence.ErrDatabase
+	}
+
+	return events, nil
 }
