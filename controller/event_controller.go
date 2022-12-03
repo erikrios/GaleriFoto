@@ -57,12 +57,12 @@ func (e *eventServiceHandler) findEventHandler(w http.ResponseWriter, r *http.Re
 	case "name":
 		event, err = e.dbHandler.FindEventByName(searchKey)
 	case "id":
-		id, err := hex.DecodeString(searchKey)
+		_, err := hex.DecodeString(searchKey)
 		if err != nil {
 			writeJson(w, http.StatusBadRequest, &ErrorResponse{Error: "ID Should be in hexadecimal charater"})
 			return
 		}
-		event, err = e.dbHandler.FindEvent(id)
+		event, err = e.dbHandler.FindEvent([]byte(searchKey))
 	default:
 		writeJson(w, http.StatusBadRequest, &ErrorResponse{Error: "Unsupported criteria"})
 		return

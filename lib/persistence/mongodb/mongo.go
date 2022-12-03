@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/erikrios/cloud-native-programming-with-go/lib/persistence"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,17 +24,27 @@ func NewMongoDBLayer(db *mongo.Database) persistence.DatabaseHandler {
 }
 
 func (m *MongoDBLayer) AddEvent(e persistence.Event) ([]byte, error) {
+	e.Location.ID = primitive.NewObjectID()
 	result, err := m.db.Collection(EVENTS).InsertOne(context.TODO(), &e)
 	if err != nil {
 		return nil, persistence.ErrDatabase
 	}
 
-	id, err := primitive.ObjectIDFromHex(fmt.Sprintf("%s", result.InsertedID))
-	return []byte(id.String()), nil
+	id, ok := result.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return nil, persistence.ErrDatabase
+	}
+
+	return []byte(id.Hex()), nil
 }
 
 func (m *MongoDBLayer) FindEvent(id []byte) (persistence.Event, error) {
-	filter := bson.D{{"_id", string(id)}}
+	hexID, err := primitive.ObjectIDFromHex(string(id))
+	if err != nil {
+		return persistence.Event{}, persistence.ErrDatabase
+	}
+
+	filter := bson.D{{"_id", hexID}}
 
 	var event persistence.Event
 
