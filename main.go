@@ -37,7 +37,7 @@ func main() {
 	}()
 
 	mongoDBHandler := mongodb.NewMongoDBLayer(client.Database(config.DBName))
-	log.Println("Successfully connected into database")
+	log.Printf("Successfully connected into database with address %p\n", client)
 
 	log.Println(fmt.Sprintf("Server started on port %d...\n", config.Port))
 	if err := controller.ServeAPI(mongoDBHandler); err != nil {
